@@ -24,8 +24,11 @@ public class RedditScheduler {
 
     private static final String TIME_TABLE_FILE_PATH = "G:\\Coding\\reddit-dailyprog\\src\\redditscheduler\\TimeTable.txt";
 
+    // Use TreeMap to guarantee sorted keys - May hinder performance on big sets but not a concern here
     private static Map<LocalDate, List<PlannedActivity>> schedule = new TreeMap<LocalDate, List<PlannedActivity>>();
     private static List<PlannedActivity> plannedActivities = new ArrayList<PlannedActivity>();
+
+    private static long totalActivitiesTime = 0L;
 
     public static void main(String[] args) {
 
@@ -47,23 +50,38 @@ public class RedditScheduler {
             schedule.get(date).add(pa);
         }
 
-        // Add reditting
+        // Add reditting activity
         for (LocalDate date : schedule.keySet()) {
             addRedditingInBiggestFreeGap(schedule.get(date));
         }
 
+        Map<String, Long> actTimeStats = computeActivityStats();
+
+        outputCalendarStats(schedule, actTimeStats);
+        System.exit(0);
+
+    }
+
+    private static void outputCalendarStats(Map<LocalDate, List<PlannedActivity>> cal, Map<String, Long> actTimeStats) {
         // Output Schedule
-        for (LocalDate date : schedule.keySet()) {
+        for (LocalDate date : cal.keySet()) {
             System.out.println(date.toString());
             System.out.println("---");
-            for (PlannedActivity act : schedule.get(date)) {
+            for (PlannedActivity act : cal.get(date)) {
                 System.out.println("\t" + act.getStartTime() + " to " + act.getEndTime() + " - " + act.getName());
             }
             System.out.println();
         }
 
-        System.exit(0);
+        // Output Stats
+        System.out.println("Statistics: ");
+        for (String name : actTimeStats.keySet()) {
+            System.out.println("\t" + name + " -> " + actTimeStats.get(name).intValue() + "min, or "
+                                + String.format("%.2f", (actTimeStats.get(name).doubleValue() / (double) totalActivitiesTime) * 100.0)
+                                + "% of the week.");
+        }
 
+        System.out.println();
     }
 
     private static String[] processTimeTableFile(String filePath) {
@@ -108,6 +126,34 @@ public class RedditScheduler {
         }
 
         Collections.sort(activities);
+    }
+
+    private static Map<String, Long> computeActivityStats() {
+        // 1. Regroup activities by name
+        Map<String, List<PlannedActivity>> actByNameMap = new HashMap<String, List<PlannedActivity>>();
+
+        for (List<PlannedActivity> l : schedule.values()) {
+            for (PlannedActivity act : l) {
+                String name = act.getName();
+                if (!actByNameMap.containsKey(name)) {
+                    actByNameMap.put(name, new ArrayList<PlannedActivity>());
+                }
+                actByNameMap.get(name).add(act);
+            }
+        }
+
+        // 2. Compute total activity time
+        Map<String, Long> actTotTimeMap = new HashMap<String, Long>();
+        for (String name : actByNameMap.keySet()) {
+            long totalActTime = 0L;
+            for (PlannedActivity act : actByNameMap.get(name)) {
+                totalActTime += Duration.between(act.getStartTime(), act.getEndTime()).toMinutes();
+            }
+            actTotTimeMap.put(name, totalActTime);
+            totalActivitiesTime += totalActTime;
+        }
+
+        return actTotTimeMap;
     }
 
 }
