@@ -12,8 +12,8 @@ import java.time.format.DateTimeFormatter;
  * <p/>
  * @author: Matt Fortier <fortiema@gmail.com>
  * <p/>
- * Created on: 14-12-04.
- * Last Modified on: 14-12-04.
+ * Created on: 2014-12-04.
+ * Last Modified on: 2014-12-25.
  */
 public class PlannedActivity implements Comparable<PlannedActivity> {
 

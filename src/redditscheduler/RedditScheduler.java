@@ -17,15 +17,14 @@ import java.util.*;
  * <p/>
  * @author: Matt Fortier <fortiema@gmail.com>
  * <p/>
- * Created on: 14-12-03.
- * Last Modified on: 14-12-03.
+ * Created on: 2014-12-03.
+ * Last Modified on: 2014-12-25.
  */
 public class RedditScheduler {
 
     private static final String TIME_TABLE_FILE_PATH = "G:\\Coding\\reddit-dailyprog\\src\\redditscheduler\\TimeTable.txt";
 
     private static Map<LocalDate, List<PlannedActivity>> schedule = new TreeMap<LocalDate, List<PlannedActivity>>();
-
     private static List<PlannedActivity> plannedActivities = new ArrayList<PlannedActivity>();
 
     public static void main(String[] args) {
@@ -53,11 +52,12 @@ public class RedditScheduler {
             addRedditingInBiggestFreeGap(schedule.get(date));
         }
 
+        // Output Schedule
         for (LocalDate date : schedule.keySet()) {
             System.out.println(date.toString());
             System.out.println("---");
             for (PlannedActivity act : schedule.get(date)) {
-                System.out.println(act.getStartTime() + " to " + act.getEndTime() + " - " + act.getName());
+                System.out.println("\t" + act.getStartTime() + " to " + act.getEndTime() + " - " + act.getName());
             }
             System.out.println();
         }
