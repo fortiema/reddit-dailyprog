@@ -6,6 +6,7 @@ import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Title: RedditScheduler
@@ -28,7 +29,8 @@ public class RedditScheduler {
     private static Map<LocalDate, List<PlannedActivity>> schedule = new TreeMap<LocalDate, List<PlannedActivity>>();
     private static List<PlannedActivity> plannedActivities = new ArrayList<PlannedActivity>();
 
-    private static long totalActivitiesTime = 0L;
+    // New Java 8 API
+    private static DoubleSummaryStatistics globalStats;
 
     public static void main(String[] args) {
 
@@ -77,7 +79,7 @@ public class RedditScheduler {
         System.out.println("Statistics: ");
         for (String name : actTimeStats.keySet()) {
             System.out.println("\t" + name + " -> " + actTimeStats.get(name).intValue() + "min, or "
-                                + String.format("%.2f", (actTimeStats.get(name).doubleValue() / (double) totalActivitiesTime) * 100.0)
+                                + String.format("%.2f", (actTimeStats.get(name).doubleValue() / globalStats.getSum()) * 100.0)
                                 + "% of the week.");
         }
 
@@ -150,8 +152,10 @@ public class RedditScheduler {
                 totalActTime += Duration.between(act.getStartTime(), act.getEndTime()).toMinutes();
             }
             actTotTimeMap.put(name, totalActTime);
-            totalActivitiesTime += totalActTime;
         }
+
+        // Using new Java 8 reduction target and SummaryStatistics
+        globalStats = actTotTimeMap.values().stream().collect(Collectors.summarizingDouble(Long::doubleValue));
 
         return actTotTimeMap;
     }
