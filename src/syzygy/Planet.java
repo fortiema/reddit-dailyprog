@@ -1,5 +1,9 @@
 package syzygy;
 
+import javafx.geometry.Point2D;
+
+import java.util.Vector;
+
 /**
  * Title: Planet
  * <p/>
@@ -40,12 +44,23 @@ public class Planet {
         return currentPosition;
     }
 
-    public void setPositionAtYear(double yearsElapsed) {
-        this.currentPosition = (PI * orbitRadiusAU) * (yearsElapsed % orbitalPeriodEY);
+    public Point2D getPositionCartesian() {
+        return new Point2D(orbitRadiusAU * Math.cos(currentPosition * PI2),
+                           orbitRadiusAU * Math.sin(currentPosition * PI2));
+    }
+
+    public void setElapsedYears(double yearsElapsed) {
+        this.currentPosition = ((yearsElapsed % orbitalPeriodEY) / orbitalPeriodEY);
     }
 
     public void resetPosition() {
         this.currentPosition = 0.0;
+    }
+
+    public String toString() {
+        return name + " - " + String.format("%.2f", currentPosition) + " ("
+                + String.format("%.3f", getPositionCartesian().getX()) + ","
+                + String.format("%.3f", getPositionCartesian().getY()) + ")";
     }
 
 }

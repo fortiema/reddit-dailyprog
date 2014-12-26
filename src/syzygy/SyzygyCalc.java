@@ -1,5 +1,7 @@
 package syzygy;
 
+import javafx.geometry.Point2D;
+
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
@@ -27,7 +29,7 @@ public class SyzygyCalc {
     static BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(System.in));
     private static List<Planet> starSystem = new ArrayList<Planet>();
 
-    public static void main() {
+    public static void main(String[] args) {
 
         // 1. Generate Solar System
         starSystem.add(new Planet("Sun", 0.0, 1.0));            // HACK: Period set to 1 to avoid div-by-0 Exception
@@ -47,10 +49,19 @@ public class SyzygyCalc {
 
             // 3. Update Planets potiions
             for (Planet p : starSystem) {
-                p.setPositionAtYear(yearDelta);
+                p.setElapsedYears(yearDelta);
             }
 
+            // ----- DEBUG -----
+            for (Planet p : starSystem) {
+                System.out.println(p.toString());
+            }
+            // --- END DEBUG ---
+
             // 4. Check for Syzygies
+            List<Point2D> vectors = extractPlanetPairVectors();
+            System.out.println(vectors.get(2));
+            findSyzygies(vectors);
 
             // 5. Display graphical system (?)
 
@@ -59,5 +70,26 @@ public class SyzygyCalc {
         }
 
         System.exit(0);
+    }
+
+    public static List<String> findSyzygies(List<Point2D> vectors) {
+        return null;
+    }
+
+    public static List<Point2D> extractPlanetPairVectors() {
+
+        List<Point2D> vectors = new ArrayList<>(starSystem.size() * (starSystem.size()-1) / 2);
+
+        for (int i = 0; i < starSystem.size(); i++) {
+            for (int j = 0; j < starSystem.size(); j++) {
+                if (j != i) {
+                    double newX = starSystem.get(i).getPositionCartesian().getX() - starSystem.get(j).getPositionCartesian().getX();
+                    double newY = starSystem.get(i).getPositionCartesian().getY() - starSystem.get(j).getPositionCartesian().getY();
+                    vectors.add(new Point2D(newX, newY));
+                }
+            }
+        }
+
+        return vectors;
     }
 }
