@@ -4,9 +4,7 @@ import javafx.geometry.Point2D;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Scanner;
+import java.util.*;
 
 /**
  * Title: SyzygyCalc
@@ -59,9 +57,15 @@ public class SyzygyCalc {
             // --- END DEBUG ---
 
             // 4. Check for Syzygies
-            List<Point2D> vectors = extractPlanetPairVectors();
-            System.out.println(vectors.get(2));
-            findSyzygies(vectors);
+            Map<String, Point2D> vectors = extractPlanetPairVectors();
+            Set<String> syzygies = findSyzygies(vectors);
+
+            if (syzygies == null) {
+                System.out.println("No syzygies at this epoch.");
+            } else {
+                System.out.println("Syzygy detected between:");
+                syzygies.forEach(s -> System.out.println(s));               // Java 8 lambda
+            }
 
             // 5. Display graphical system (?)
 
@@ -72,24 +76,37 @@ public class SyzygyCalc {
         System.exit(0);
     }
 
-    public static List<String> findSyzygies(List<Point2D> vectors) {
-        return null;
-    }
+    public static Set<String> findSyzygies(Map<String, Point2D> vectors) {
 
-    public static List<Point2D> extractPlanetPairVectors() {
+        Set<String> syzygies = new TreeSet<>();
 
-        List<Point2D> vectors = new ArrayList<>(starSystem.size() * (starSystem.size()-1) / 2);
+        for (Map.Entry<String, Point2D> v : vectors.entrySet()) {
+            for (Map.Entry<String, Point2D> v2 : vectors.entrySet()) {
+                if (! v2.getKey().equals(v.getKey())) {
+                    if (v.getValue().angle(v2.getValue()) < 1.0) {
+                        syzygies.addAll(Arrays.asList(v.getKey().split("-")));
+                        syzygies.addAll(Arrays.asList(v2.getKey().split("-")));
 
-        for (int i = 0; i < starSystem.size(); i++) {
-            for (int j = 0; j < starSystem.size(); j++) {
-                if (j != i) {
-                    double newX = starSystem.get(i).getPositionCartesian().getX() - starSystem.get(j).getPositionCartesian().getX();
-                    double newY = starSystem.get(i).getPositionCartesian().getY() - starSystem.get(j).getPositionCartesian().getY();
-                    vectors.add(new Point2D(newX, newY));
+                    }
                 }
             }
         }
 
-        return vectors;
+        return (syzygies.size() > 2 ? syzygies : null);
+    }
+
+    public static Map<String, Point2D> extractPlanetPairVectors() {
+
+        Map<String, Point2D> planetVectorMap = new HashMap<>();
+
+        for (int i = 0; i < starSystem.size(); i++) {
+            for (int j = i+1; j < starSystem.size(); j++) {
+                double newX = starSystem.get(i).getPositionCartesian().getX() - starSystem.get(j).getPositionCartesian().getX();
+                double newY = starSystem.get(i).getPositionCartesian().getY() - starSystem.get(j).getPositionCartesian().getY();
+                planetVectorMap.put(starSystem.get(i).getName() + "-" + starSystem.get(j).getName(), new Point2D(newX, newY));
+            }
+        }
+
+        return planetVectorMap;
     }
 }
