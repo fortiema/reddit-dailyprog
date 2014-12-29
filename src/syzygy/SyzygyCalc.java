@@ -5,6 +5,7 @@ import javafx.geometry.Point2D;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Title: SyzygyCalc
@@ -25,20 +26,20 @@ import java.util.*;
 public class SyzygyCalc {
 
     static BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(System.in));
-    private static List<Planet> starSystem = new ArrayList<Planet>();
+    private static List<Planet> solarSystem = new ArrayList<Planet>();
 
     public static void main(String[] args) {
 
         // 1. Generate Solar System
-        starSystem.add(new Planet("Sun", 0.0, 1.0));            // HACK: Period set to 1 to avoid div-by-0 Exception
-        starSystem.add(new Planet("Mercury", 0.387, 0.241));
-        starSystem.add(new Planet("Venus", 0.723, 0.615));
-        starSystem.add(new Planet("Earth", 1.000, 1.000));
-        starSystem.add(new Planet("Mars", 1.524, 1.881));
-        starSystem.add(new Planet("Jupiter", 5.204, 11.862));
-        starSystem.add(new Planet("Saturn", 9.582, 29.457));
-        starSystem.add(new Planet("Uranus", 19.189, 84.017));
-        starSystem.add(new Planet("Neptune", 30.071, 164.795));
+        solarSystem.add(new Planet("Sun", 0.0, 1.0));            // HACK: Period set to 1 to avoid div-by-0 Exception
+        solarSystem.add(new Planet("Mercury", 0.387, 0.241));
+        solarSystem.add(new Planet("Venus", 0.723, 0.615));
+        solarSystem.add(new Planet("Earth", 1.000, 1.000));
+        solarSystem.add(new Planet("Mars", 1.524, 1.881));
+        solarSystem.add(new Planet("Jupiter", 5.204, 11.862));
+        solarSystem.add(new Planet("Saturn", 9.582, 29.457));
+        solarSystem.add(new Planet("Uranus", 19.189, 84.017));
+        solarSystem.add(new Planet("Neptune", 30.071, 164.795));
 
         try {
             // 2. Get User Input
@@ -46,25 +47,29 @@ public class SyzygyCalc {
             double yearDelta = Double.parseDouble(bufferedReader.readLine());
 
             // 3. Update Planets potiions
-            for (Planet p : starSystem) {
+            for (Planet p : solarSystem) {
                 p.setElapsedYears(yearDelta);
             }
 
             // ----- DEBUG -----
-            for (Planet p : starSystem) {
+            for (Planet p : solarSystem) {
                 System.out.println(p.toString());
             }
             // --- END DEBUG ---
 
             // 4. Check for Syzygies
-            Map<String, Point2D> vectors = extractPlanetPairVectors();
-            Set<String> syzygies = findSyzygies(vectors);
+            List<Set<String>> syzygies = findSyzygies(solarSystem);
 
             if (syzygies == null) {
                 System.out.println("No syzygies at this epoch.");
             } else {
                 System.out.println("Syzygy detected between:");
-                syzygies.forEach(s -> System.out.println(s));               // Java 8 lambda
+                for (Set<String> set : syzygies) {
+                    for (String s : set) {
+                        System.out.print(s + "-");
+                    }
+                    System.out.println();
+                }
             }
 
             // 5. Display graphical system (?)
@@ -76,37 +81,63 @@ public class SyzygyCalc {
         System.exit(0);
     }
 
-    public static Set<String> findSyzygies(Map<String, Point2D> vectors) {
+    /**
+     * Find sets of 3+ planets aligned to 1.0 deg or less (aka. "Syzygy")
+     * <p/>
+     * Based on Princeton CS226 Line Pattern Recognition in a point set.
+     * <a>http://www.cs.princeton.edu/courses/archive/spring03/cs226/assignments/lines.html</a>
+     * @param starSystem List of the Planets composing the system
+     * @return A list of arrays of Planets forming syzygies (null if none)
+     */
+    public static List<Set<String>> findSyzygies(List<Planet> starSystem) {
 
-        Set<String> syzygies = new TreeSet<>();
+        List<Set<String>> syzygiesList = new ArrayList<>();
 
-        for (Map.Entry<String, Point2D> v : vectors.entrySet()) {
-            for (Map.Entry<String, Point2D> v2 : vectors.entrySet()) {
-                if (! v2.getKey().equals(v.getKey())) {
-                    if (v.getValue().angle(v2.getValue()) < 1.0) {
-                        syzygies.addAll(Arrays.asList(v.getKey().split("-")));
-                        syzygies.addAll(Arrays.asList(v2.getKey().split("-")));
+        Comparator<Map.Entry<Planet, Point2D>> byAngle = (p1, p2) -> new Double(p1.getValue().angle(new Point2D(0,0))).compareTo(
+                                                                                p2.getValue().angle(new Point2D(0,0)));
 
+        // 1. For each planet in StarSystem
+        for (Planet p1 : starSystem) {
+            Map<Planet, Point2D> currPlanetVectMap = new HashMap<>();
+
+            // 2. Treat its current position as origin and fetch vectors to all other planets
+            for (Planet p2 : starSystem) {
+                if (!p2.equals(p1)) {
+                    double vX = p2.getPositionCartesian().getX() - p1.getPositionCartesian().getX();
+                    double vY = p2.getPositionCartesian().getY() - p1.getPositionCartesian().getY();
+                    currPlanetVectMap.put(p2, new Point2D(vX, vY));
+                }
+            }
+
+            // Java 8 - Sorting of Map Entries using Stream API and lambda expression Comparator
+            Map<Planet, Point2D> sortedAngleMap = currPlanetVectMap
+                    .entrySet()
+                    .stream()
+                    .sorted(byAngle)
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+            // 3. Compare adjacent angles. If >= 2 other planets have <= 1.0 angle delta, add to syzygy list
+            Set<String> syzNameList = new HashSet<>();
+
+            for (Map.Entry<Planet, Point2D> e1 : sortedAngleMap.entrySet()) {
+                for (Map.Entry<Planet, Point2D> e2 : sortedAngleMap.entrySet()) {
+                    if (!e2.equals(e1)) {
+                        if (e2.getValue().angle(e1.getValue()) <= 1.0) {
+                            syzNameList.add(e1.getKey().getName());
+                            syzNameList.add(e2.getKey().getName());
+                        }
                     }
                 }
             }
-        }
 
-        return (syzygies.size() > 2 ? syzygies : null);
-    }
-
-    public static Map<String, Point2D> extractPlanetPairVectors() {
-
-        Map<String, Point2D> planetVectorMap = new HashMap<>();
-
-        for (int i = 0; i < starSystem.size(); i++) {
-            for (int j = i+1; j < starSystem.size(); j++) {
-                double newX = starSystem.get(i).getPositionCartesian().getX() - starSystem.get(j).getPositionCartesian().getX();
-                double newY = starSystem.get(i).getPositionCartesian().getY() - starSystem.get(j).getPositionCartesian().getY();
-                planetVectorMap.put(starSystem.get(i).getName() + "-" + starSystem.get(j).getName(), new Point2D(newX, newY));
+            if (syzNameList.size() > 1) {
+                syzNameList.add(p1.getName());
+                syzygiesList.add(syzNameList);
             }
+
         }
 
-        return planetVectorMap;
+        return (syzygiesList.size() > 2 ? syzygiesList : null);
     }
+
 }

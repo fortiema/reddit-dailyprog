@@ -57,6 +57,10 @@ public class Planet {
         this.currentPosition = 0.0;
     }
 
+    public boolean equals(Planet p2) {
+        return (this.name.equals(p2.getName()));
+    }
+
     public String toString() {
         return name + " - " + String.format("%.2f", currentPosition) + " ("
                 + String.format("%.3f", getPositionCartesian().getX()) + ","
