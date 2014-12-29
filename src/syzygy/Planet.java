@@ -57,8 +57,9 @@ public class Planet {
         this.currentPosition = 0.0;
     }
 
-    public boolean equals(Planet p2) {
-        return (this.name.equals(p2.getName()));
+    @Override
+    public boolean equals(Object o) {
+        return (o instanceof Planet) && ((Planet) o).getName().equals(this.name);
     }
 
     public String toString() {

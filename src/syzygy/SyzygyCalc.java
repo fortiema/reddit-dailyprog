@@ -31,7 +31,7 @@ public class SyzygyCalc {
     public static void main(String[] args) {
 
         // 1. Generate Solar System
-        solarSystem.add(new Planet("Sun", 0.0, 1.0));            // HACK: Period set to 1 to avoid div-by-0 Exception
+        solarSystem.add(new Planet("Sun", 0.0, Double.MAX_VALUE));      // Period hack to avoid div-by-0 Exception
         solarSystem.add(new Planet("Mercury", 0.387, 0.241));
         solarSystem.add(new Planet("Venus", 0.723, 0.615));
         solarSystem.add(new Planet("Earth", 1.000, 1.000));
@@ -55,6 +55,7 @@ public class SyzygyCalc {
             for (Planet p : solarSystem) {
                 System.out.println(p.toString());
             }
+            System.out.println();
             // --- END DEBUG ---
 
             // 4. Check for Syzygies
@@ -93,46 +94,52 @@ public class SyzygyCalc {
 
         List<Set<String>> syzygiesList = new ArrayList<>();
 
-        Comparator<Map.Entry<Planet, Point2D>> byAngle = (p1, p2) -> new Double(p1.getValue().angle(new Point2D(0,0))).compareTo(
-                                                                                p2.getValue().angle(new Point2D(0,0)));
-
         // 1. For each planet in StarSystem
         for (Planet p1 : starSystem) {
-            Map<Planet, Point2D> currPlanetVectMap = new HashMap<>();
+            Map<Planet, Double> currPlanetVectMap = new HashMap<>();
 
             // 2. Treat its current position as origin and fetch vectors to all other planets
             for (Planet p2 : starSystem) {
                 if (!p2.equals(p1)) {
                     double vX = p2.getPositionCartesian().getX() - p1.getPositionCartesian().getX();
                     double vY = p2.getPositionCartesian().getY() - p1.getPositionCartesian().getY();
-                    currPlanetVectMap.put(p2, new Point2D(vX, vY));
+                    currPlanetVectMap.put(p2, Math.atan2(vY, vX));
                 }
             }
 
             // Java 8 - Sorting of Map Entries using Stream API and lambda expression Comparator
-            Map<Planet, Point2D> sortedAngleMap = currPlanetVectMap
-                    .entrySet()
-                    .stream()
-                    .sorted(byAngle)
-                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+            // Sorting a map by value does not seem to work, commenting out in favor of list
+            //Map<Planet, Double> sortedAngleMap = currPlanetVectMap.entrySet().stream()
+            //        .sorted((e1, e2) -> e1.getValue().compareTo(e2.getValue()))
+            //        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
+            List<Map.Entry<Planet, Double>> sortedAngleList = currPlanetVectMap.entrySet().stream()
+                    .sorted((e1, e2) -> e1.getValue().compareTo(e2.getValue()))
+                    .collect(Collectors.toList());
+
+            // ----- DEBUG -----
+            System.out.println(p1.getName() + " Vectors:");
+            sortedAngleList.forEach(s -> System.out.println("\t" + s.getKey().getName() + " - " + s.getValue()));
+            System.out.println();
+            // --- END DEBUG ---
 
             // 3. Compare adjacent angles. If >= 2 other planets have <= 1.0 angle delta, add to syzygy list
             Set<String> syzNameList = new HashSet<>();
 
-            for (Map.Entry<Planet, Point2D> e1 : sortedAngleMap.entrySet()) {
-                for (Map.Entry<Planet, Point2D> e2 : sortedAngleMap.entrySet()) {
-                    if (!e2.equals(e1)) {
-                        if (e2.getValue().angle(e1.getValue()) <= 1.0) {
-                            syzNameList.add(e1.getKey().getName());
-                            syzNameList.add(e2.getKey().getName());
+            for (int i = 0; i < sortedAngleList.size() - 1; i ++) {
+                if (Math.abs(sortedAngleList.get(i+1).getValue() - sortedAngleList.get(i).getValue()) <= 0.01) {
+                    syzNameList.add(sortedAngleList.get(i).getKey().getName());
+                    syzNameList.add(sortedAngleList.get(i+1).getKey().getName());
+                } else {
+                    if (syzNameList.size() > 1) {
+                        syzNameList.add(p1.getName());
+                        if (!syzygiesList.contains(syzNameList)) {
+                            syzygiesList.add(new HashSet<String>(syzNameList));
                         }
                     }
+                    syzNameList.clear();
                 }
-            }
-
-            if (syzNameList.size() > 1) {
-                syzNameList.add(p1.getName());
-                syzygiesList.add(syzNameList);
             }
 
         }
