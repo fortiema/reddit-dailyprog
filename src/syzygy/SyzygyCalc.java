@@ -60,20 +60,29 @@ public class SyzygyCalc {
 
             // 4. Check for Syzygies
             printAngleMap(computeAngleMap(solarSystem));
-            List<Set<Planet>> syzygies = findSyzygies(computeAngleMap(solarSystem));
+            Set<String> syzygies = findSyzygies(computeAngleMap(solarSystem));
+
+//            List<String> syzygiesList = findSyzygiesCartesian(solarSystem);
 
             if (syzygies == null) {
                 System.out.println("No syzygies at this epoch.");
             } else {
                 System.out.println("Syzygy detected between:");
-                for (Set<Planet> set : syzygies) {
-                    System.out.print("\t");
-                    for (Planet p : set) {
-                        System.out.print(p.getName() + "-");
-                    }
-                    System.out.println();
+                for (String s : syzygies) {
+                    System.out.println("\t" + s);
                 }
             }
+
+//            if (syzygiesList == null) {
+//                System.out.println("No syzygies at this epoch.");
+//            } else {
+//                System.out.println("Syzygy detected between:");
+//                for (String p : syzygiesList) {
+//                    System.out.print("\t");
+//                    System.out.print(p);
+//                }
+//                System.out.println();
+//            }
 
             // 5. Display graphical system (?)
 
@@ -116,7 +125,7 @@ public class SyzygyCalc {
             System.out.println(p1.getName() + " Positions");
             System.out.println("---");
             for (Long angle : angleMap.get(p1).keySet()) {
-                System.out.print("\t@ " + angle +" deg.: ");
+                System.out.print("\t@ " + angle + " deg.: ");
                 for (Planet p2 : angleMap.get(p1).get(angle)) {
                     System.out.print(p2.getName() + " ");
                 }
@@ -126,34 +135,38 @@ public class SyzygyCalc {
 
     }
 
-    public static List<Set<Planet>> findSyzygies(Map<Planet, Map<Long, Set<Planet>>> angleMap) {
+    public static Set<String> findSyzygies(Map<Planet, Map<Long, Set<Planet>>> angleMap) {
 
-        List<Set<Planet>> syzygiesList = new ArrayList<>();
+        Set<String> syzygiesSet = new HashSet<>();
 
         for (Planet p1 : angleMap.keySet()) {
 
-            Set<Planet> currSyzygy = new HashSet<>();
+            List<Planet> currSyzygy = new ArrayList<>();
 
             // 1. For each angle in set, see if there is at least 2 planets aligned with p1
             for (Long ang : angleMap.get(p1).keySet()) {
                 currSyzygy.add(p1);
                 currSyzygy.addAll(angleMap.get(p1).get(ang));
 
-                if (angleMap.get(p1).containsKey(ang+1)) {
-                    currSyzygy.addAll(angleMap.get(p1).get(ang+1));
-                }
-                if (angleMap.get(p1).containsKey(ang+179)) {
-                    currSyzygy.addAll(angleMap.get(p1).get(ang+179));
-                }
-                if (angleMap.get(p1).containsKey(ang+180)) {
-                    currSyzygy.addAll(angleMap.get(p1).get(ang+180));
-                }
-                if (angleMap.get(p1).containsKey(ang+181)) {
-                    currSyzygy.addAll(angleMap.get(p1).get(ang+181));
-                }
+//                if (angleMap.get(p1).containsKey(ang+1)) {
+//                    currSyzygy.addAll(angleMap.get(p1).get(ang+1));
+//                }
+//                if (angleMap.get(p1).containsKey(ang+179)) {
+//                    currSyzygy.addAll(angleMap.get(p1).get(ang+179));
+//                }
+//                if (angleMap.get(p1).containsKey(ang+180)) {
+//                    currSyzygy.addAll(angleMap.get(p1).get(ang+180));
+//                }
+//                if (angleMap.get(p1).containsKey(ang+181)) {
+//                    currSyzygy.addAll(angleMap.get(p1).get(ang+181));
+//                }
 
                 if (currSyzygy.size() >= 3) {
-                    syzygiesList.add(new HashSet<>(currSyzygy));
+                    List<String> syzygyStringList = currSyzygy.stream()             // Java 8 Stream API
+                            .map(Planet::getName)
+                            .collect(Collectors.toList());
+                    Collections.sort(syzygyStringList, Comparator.<String>naturalOrder());
+                    syzygiesSet.add(String.join("-", syzygyStringList));
                 }
 
                 currSyzygy.clear();
@@ -161,7 +174,7 @@ public class SyzygyCalc {
 
         }
 
-        return (syzygiesList.isEmpty() ? null : syzygiesList);
+        return (syzygiesSet.isEmpty() ? null : syzygiesSet);
     }
 
     /**
@@ -172,9 +185,10 @@ public class SyzygyCalc {
      * @param starSystem List of the Planets composing the system
      * @return A list of arrays of Planets forming syzygies (null if none)
      */
-    public static List<Set<String>> findSyzygiesCartesian(List<Planet> starSystem) {
+    public static List<String> findSyzygiesCartesian(List<Planet> starSystem) {
+        // FIXME: THIS METHOD CURRENTLY DOESN'T WORK - LOSS OF PRECISION IN ANGLE CALCULATION BREAKS SYZYGY FINDER ALGO
 
-        List<Set<String>> syzygiesList = new ArrayList<>();
+        List<String> syzygiesList = new ArrayList<>();
 
         // 1. For each planet in StarSystem
         for (Planet p1 : starSystem) {
@@ -206,27 +220,28 @@ public class SyzygyCalc {
             System.out.println();
             // --- END DEBUG ---
 
-            // 3. Compare adjacent angles. If >= 2 other planets have <= 0.01 rad angle delta, add to syzygy list
-            Set<String> syzNameList = new HashSet<>();
+            // 3. Compare adjacent angles. If >= 2 other planets have <= 1 angle delta, add to syzygy list
+            Set<String> currSyzygySet = new HashSet<>();
 
             for (int i = 0; i < sortedAngleList.size() - 1; i ++) {
-                if ( Math.abs(sortedAngleList.get(i+1).getValue() - sortedAngleList.get(i).getValue()) <= 1.0) {
-                    syzNameList.add(sortedAngleList.get(i).getKey().getName());
-                    syzNameList.add(sortedAngleList.get(i+1).getKey().getName());
+                currSyzygySet.add(p1.getName());
+                if ( Math.abs(sortedAngleList.get(i+1).getValue() - sortedAngleList.get(i).getValue()) <= 0.5) {
+                    currSyzygySet.add(sortedAngleList.get(i).getKey().getName());
+                    currSyzygySet.add(sortedAngleList.get(i+1).getKey().getName());
                 } else {
-                    if (!syzNameList.isEmpty()) {
-                        syzNameList.add(p1.getName());
-                        if (!syzygiesList.contains(syzNameList)) {
-                            syzygiesList.add(new HashSet<>(syzNameList));
-                        }
+                    if (currSyzygySet.size() >= 3) {
+                        List<String> planetList = currSyzygySet.stream()
+                                .sorted(Comparator.<String>naturalOrder())
+                                .collect(Collectors.toList());
+                        syzygiesList.add(String.join("-", planetList));
                     }
-                    syzNameList.clear();
+                    currSyzygySet.clear();
                 }
             }
 
         }
 
-        return (syzygiesList.size() > 2 ? syzygiesList : null);
+        return (!syzygiesList.isEmpty() ? syzygiesList : null);
     }
 
 }
