@@ -18,7 +18,7 @@ import java.util.Vector;
  */
 public class Planet {
 
-    public static final double PI2 = 6.2832;
+    public static final double R360 = Math.PI * 2;
 
     private String name;
     private double orbitRadiusAU;
@@ -45,8 +45,8 @@ public class Planet {
     }
 
     public Point2D getPositionCartesian() {
-        return new Point2D(orbitRadiusAU * Math.cos(currentPosition * PI2),
-                           orbitRadiusAU * Math.sin(currentPosition * PI2));
+        return new Point2D(orbitRadiusAU * Math.cos(currentPosition * R360),
+                           orbitRadiusAU * Math.sin(currentPosition * R360));
     }
 
     public void setElapsedYears(double yearsElapsed) {

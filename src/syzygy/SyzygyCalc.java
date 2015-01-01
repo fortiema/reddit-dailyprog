@@ -59,19 +59,33 @@ public class SyzygyCalc {
             // --- END DEBUG ---
 
             // 4. Check for Syzygies
-            List<Set<String>> syzygies = findSyzygies(solarSystem);
+           // List<Set<String>> syzygies = findSyzygies(solarSystem);
+            Map<Planet, Map<Long, Set<Planet>>> angleStarSystemMap = computeAngleMap(solarSystem);
 
-            if (syzygies == null) {
-                System.out.println("No syzygies at this epoch.");
-            } else {
-                System.out.println("Syzygy detected between:");
-                for (Set<String> set : syzygies) {
-                    for (String s : set) {
-                        System.out.print(s + "-");
+            for (Planet p : angleStarSystemMap.keySet()) {
+                System.out.println(p.getName() + " angle map:");
+                System.out.println("---");
+                for (Long ang : angleStarSystemMap.get(p).keySet()) {
+                    System.out.print("\t@ " + ang + "deg.:");
+                    for (Planet p2 : angleStarSystemMap.get(p).get(ang)) {
+                        System.out.print(p2.getName() + " ");
                     }
                     System.out.println();
                 }
             }
+
+//            if (syzygies == null) {
+//                System.out.println("No syzygies at this epoch.");
+//                System.out.println("No syzygies at this epoch.");
+//            } else {
+//                System.out.println("Syzygy detected between:");
+//                for (Set<String> set : syzygies) {
+//                    for (String s : set) {
+//                        System.out.print(s + "-");
+//                    }
+//                    System.out.println();
+//                }
+//            }
 
             // 5. Display graphical system (?)
 
@@ -80,6 +94,32 @@ public class SyzygyCalc {
         }
 
         System.exit(0);
+    }
+
+    public static Map<Planet, Map<Long, Set<Planet>>> computeAngleMap(List<Planet> starSystem) {
+        Map<Planet, Map<Long, Set<Planet>>> angleStarSystemMap = new HashMap<>();
+
+        // 1. For each planet in StarSystem
+        for (Planet p1 : starSystem) {
+            Map<Long, Set<Planet>> invertedAnglePlanetMap = new TreeMap<>();
+
+            // 2. Treat its current position as origin and fetch vectors to all other planets
+            for (Planet p2 : starSystem) {
+                if (!p2.equals(p1)) {
+                    double vX = p2.getPositionCartesian().getX() - p1.getPositionCartesian().getX();
+                    double vY = p2.getPositionCartesian().getY() - p1.getPositionCartesian().getY();
+                    long angle = Math.round(Math.toDegrees(Math.atan2(vY, vX)));
+                    if (!invertedAnglePlanetMap.containsKey(angle)) {
+                        invertedAnglePlanetMap.put(angle, new HashSet<>());
+                    }
+                    invertedAnglePlanetMap.get(angle).add(p2);
+                }
+            }
+
+            angleStarSystemMap.put(p1, invertedAnglePlanetMap);
+        }
+
+        return angleStarSystemMap;
     }
 
     /**
@@ -110,12 +150,12 @@ public class SyzygyCalc {
             // Java 8 - Sorting of Map Entries using Stream API and lambda expression Comparator
 
             // Sorting a map by value does not seem to work, commenting out in favor of list
-            //Map<Planet, Double> sortedAngleMap = currPlanetVectMap.entrySet().stream()
-            //        .sorted((e1, e2) -> e1.getValue().compareTo(e2.getValue()))
-            //        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+//            Map<Planet, Double> sortedAngleMap = currPlanetVectMap.entrySet().stream()
+//                    .sorted((e1, e2) -> e1.getValue().compareTo(e2.getValue()))
+//                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
             List<Map.Entry<Planet, Double>> sortedAngleList = currPlanetVectMap.entrySet().stream()
-                    .sorted((e1, e2) -> e1.getValue().compareTo(e2.getValue()))
+                    .sorted(Map.Entry.comparingByValue())
                     .collect(Collectors.toList());
 
             // ----- DEBUG -----
@@ -124,18 +164,18 @@ public class SyzygyCalc {
             System.out.println();
             // --- END DEBUG ---
 
-            // 3. Compare adjacent angles. If >= 2 other planets have <= 1.0 angle delta, add to syzygy list
+            // 3. Compare adjacent angles. If >= 2 other planets have <= 0.01 rad angle delta, add to syzygy list
             Set<String> syzNameList = new HashSet<>();
 
             for (int i = 0; i < sortedAngleList.size() - 1; i ++) {
-                if (Math.abs(sortedAngleList.get(i+1).getValue() - sortedAngleList.get(i).getValue()) <= 0.01) {
+                if ( Math.abs(sortedAngleList.get(i+1).getValue() - sortedAngleList.get(i).getValue()) <= Math.toRadians(1.00)) {
                     syzNameList.add(sortedAngleList.get(i).getKey().getName());
                     syzNameList.add(sortedAngleList.get(i+1).getKey().getName());
                 } else {
-                    if (syzNameList.size() > 1) {
+                    if (!syzNameList.isEmpty()) {
                         syzNameList.add(p1.getName());
                         if (!syzygiesList.contains(syzNameList)) {
-                            syzygiesList.add(new HashSet<String>(syzNameList));
+                            syzygiesList.add(new HashSet<>(syzNameList));
                         }
                     }
                     syzNameList.clear();
