@@ -59,33 +59,21 @@ public class SyzygyCalc {
             // --- END DEBUG ---
 
             // 4. Check for Syzygies
-           // List<Set<String>> syzygies = findSyzygies(solarSystem);
-            Map<Planet, Map<Long, Set<Planet>>> angleStarSystemMap = computeAngleMap(solarSystem);
+            printAngleMap(computeAngleMap(solarSystem));
+            List<Set<Planet>> syzygies = findSyzygies(computeAngleMap(solarSystem));
 
-            for (Planet p : angleStarSystemMap.keySet()) {
-                System.out.println(p.getName() + " angle map:");
-                System.out.println("---");
-                for (Long ang : angleStarSystemMap.get(p).keySet()) {
-                    System.out.print("\t@ " + ang + "deg.:");
-                    for (Planet p2 : angleStarSystemMap.get(p).get(ang)) {
-                        System.out.print(p2.getName() + " ");
+            if (syzygies == null) {
+                System.out.println("No syzygies at this epoch.");
+            } else {
+                System.out.println("Syzygy detected between:");
+                for (Set<Planet> set : syzygies) {
+                    System.out.print("\t");
+                    for (Planet p : set) {
+                        System.out.print(p.getName() + "-");
                     }
                     System.out.println();
                 }
             }
-
-//            if (syzygies == null) {
-//                System.out.println("No syzygies at this epoch.");
-//                System.out.println("No syzygies at this epoch.");
-//            } else {
-//                System.out.println("Syzygy detected between:");
-//                for (Set<String> set : syzygies) {
-//                    for (String s : set) {
-//                        System.out.print(s + "-");
-//                    }
-//                    System.out.println();
-//                }
-//            }
 
             // 5. Display graphical system (?)
 
@@ -122,6 +110,60 @@ public class SyzygyCalc {
         return angleStarSystemMap;
     }
 
+    public static void printAngleMap(Map<Planet, Map<Long, Set<Planet>>> angleMap) {
+
+        for (Planet p1 : angleMap.keySet()) {
+            System.out.println(p1.getName() + " Positions");
+            System.out.println("---");
+            for (Long angle : angleMap.get(p1).keySet()) {
+                System.out.print("\t@ " + angle +" deg.: ");
+                for (Planet p2 : angleMap.get(p1).get(angle)) {
+                    System.out.print(p2.getName() + " ");
+                }
+                System.out.println();
+            }
+        }
+
+    }
+
+    public static List<Set<Planet>> findSyzygies(Map<Planet, Map<Long, Set<Planet>>> angleMap) {
+
+        List<Set<Planet>> syzygiesList = new ArrayList<>();
+
+        for (Planet p1 : angleMap.keySet()) {
+
+            Set<Planet> currSyzygy = new HashSet<>();
+
+            // 1. For each angle in set, see if there is at least 2 planets aligned with p1
+            for (Long ang : angleMap.get(p1).keySet()) {
+                currSyzygy.add(p1);
+                currSyzygy.addAll(angleMap.get(p1).get(ang));
+
+                if (angleMap.get(p1).containsKey(ang+1)) {
+                    currSyzygy.addAll(angleMap.get(p1).get(ang+1));
+                }
+                if (angleMap.get(p1).containsKey(ang+179)) {
+                    currSyzygy.addAll(angleMap.get(p1).get(ang+179));
+                }
+                if (angleMap.get(p1).containsKey(ang+180)) {
+                    currSyzygy.addAll(angleMap.get(p1).get(ang+180));
+                }
+                if (angleMap.get(p1).containsKey(ang+181)) {
+                    currSyzygy.addAll(angleMap.get(p1).get(ang+181));
+                }
+
+                if (currSyzygy.size() >= 3) {
+                    syzygiesList.add(new HashSet<>(currSyzygy));
+                }
+
+                currSyzygy.clear();
+            }
+
+        }
+
+        return (syzygiesList.isEmpty() ? null : syzygiesList);
+    }
+
     /**
      * Find sets of 3+ planets aligned to 1.0 deg or less (aka. "Syzygy")
      * <p/>
@@ -130,20 +172,20 @@ public class SyzygyCalc {
      * @param starSystem List of the Planets composing the system
      * @return A list of arrays of Planets forming syzygies (null if none)
      */
-    public static List<Set<String>> findSyzygies(List<Planet> starSystem) {
+    public static List<Set<String>> findSyzygiesCartesian(List<Planet> starSystem) {
 
         List<Set<String>> syzygiesList = new ArrayList<>();
 
         // 1. For each planet in StarSystem
         for (Planet p1 : starSystem) {
-            Map<Planet, Double> currPlanetVectMap = new HashMap<>();
+            Map<Planet, Long> currPlanetVectMap = new HashMap<>();
 
             // 2. Treat its current position as origin and fetch vectors to all other planets
             for (Planet p2 : starSystem) {
                 if (!p2.equals(p1)) {
                     double vX = p2.getPositionCartesian().getX() - p1.getPositionCartesian().getX();
                     double vY = p2.getPositionCartesian().getY() - p1.getPositionCartesian().getY();
-                    currPlanetVectMap.put(p2, Math.atan2(vY, vX));
+                    currPlanetVectMap.put(p2, Math.round(Math.toDegrees(Math.atan2(vY, vX))));
                 }
             }
 
@@ -154,7 +196,7 @@ public class SyzygyCalc {
 //                    .sorted((e1, e2) -> e1.getValue().compareTo(e2.getValue()))
 //                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
-            List<Map.Entry<Planet, Double>> sortedAngleList = currPlanetVectMap.entrySet().stream()
+            List<Map.Entry<Planet, Long>> sortedAngleList = currPlanetVectMap.entrySet().stream()
                     .sorted(Map.Entry.comparingByValue())
                     .collect(Collectors.toList());
 
@@ -168,7 +210,7 @@ public class SyzygyCalc {
             Set<String> syzNameList = new HashSet<>();
 
             for (int i = 0; i < sortedAngleList.size() - 1; i ++) {
-                if ( Math.abs(sortedAngleList.get(i+1).getValue() - sortedAngleList.get(i).getValue()) <= Math.toRadians(1.00)) {
+                if ( Math.abs(sortedAngleList.get(i+1).getValue() - sortedAngleList.get(i).getValue()) <= 1.0) {
                     syzNameList.add(sortedAngleList.get(i).getKey().getName());
                     syzNameList.add(sortedAngleList.get(i+1).getKey().getName());
                 } else {
